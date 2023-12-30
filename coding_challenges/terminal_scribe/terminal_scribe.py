@@ -46,6 +46,9 @@ class TerminalScribe:
         # x is left (-1) or right (1), and y is up (-1) or down (1)
         self.direction = [0, 1]
 
+    def setPos(self, pos):
+        self.pos = pos
+
     # adding degrees to direction makes it flexible to move into that angle.
     # formulae to devise next coordinate based on degree is taken from a LinkedIn course
     def setDegrees(self, degrees):
@@ -100,9 +103,90 @@ class TerminalScribe:
         
 
 canvas = Canvas(20, 20)
-scribe = TerminalScribe(canvas)
 
-scribe.setDegrees(135)
+# data structure to hold information to create and operate multiple scribes at once. 
+# definition includes, name, position and instructions
+# instructions are later flattened and executed for all the scribes 
+scribes = [
+    {
+        "name": "scribeZ",
+        "position": (7, 0),
+        "instructions": [
+            {
+                "function": "left",
+                "duration": 5
+            },
+            {
+                "function": "down",
+                "duration": 4
+            },
+            {
+                "function": "right",
+                "duration": 5
+            },
+            {
+                "function": "up",
+                "duration": 4
+            }
+        ]
+    },
+    {
+        "name": "scribeA",
+        "position": (5, 5),
+        "instructions": [
+            {
+                "function": "forward",
+                "duration": 10
+            }
+        ]
+    },
+    {
+        "name": "scribeB",
+        "position": (0, 10),
+        "instructions": [
+            {
+                "function": "forward",
+                "duration": 5
+            },
+            {
+                "function": "down",
+                "duration": 5
+            },
+            {
+                "function": "right",
+                "duration": 8
+            },
+            {
+                "function": "up",
+                "duration": 5
+            }
+        ]
+    }
+]
 
-for i in range(20):
-    scribe.forward()
+for scribeDefinition in scribes:
+    scribeDefinition['scribe'] = TerminalScribe(canvas=canvas)
+    scribeDefinition['scribe'].setPos(scribeDefinition['position'])
+
+    scribeDefinition['instructions_flat'] = []
+    for instruction in scribeDefinition['instructions']:
+        scribeDefinition['instructions_flat'] = scribeDefinition['instructions_flat'] + [instruction['function']] * instruction['duration']
+
+# find the longest instructions arr length
+maxInstructionLen = max([len(scribeDefinition['instructions_flat']) for scribeDefinition in scribes])
+
+# for counter execute all the scribes' instructions
+for i in range(0, maxInstructionLen):
+    for scribeDefinition in scribes:
+        if i < len(scribeDefinition['instructions_flat']):
+            fun_name = scribeDefinition['instructions_flat'][i]
+            if fun_name == 'forward':
+                scribeDefinition['scribe'].forward()
+            elif fun_name == 'up':
+                scribeDefinition['scribe'].drawUp()
+            elif fun_name == 'down':
+                scribeDefinition['scribe'].drawDown()
+            elif fun_name == 'left':
+                scribeDefinition['scribe'].drawLeft()
+            elif fun_name == 'right':
+                scribeDefinition['scribe'].drawRight()
