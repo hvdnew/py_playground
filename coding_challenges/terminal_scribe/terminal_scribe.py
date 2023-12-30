@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import os
 import time
+import math
 
 # a class to hold canvas state
 class Canvas:
@@ -15,12 +16,12 @@ class Canvas:
         
     # Returns True if the given point is outside the boundaries of the Canvas
     def hitsWall(self, point):
-        return point[0] < 0 or point[0] >= self._x or point[1] < 0 or point[1] >= self._y
+        return round(point[0]) < 0 or round(point[0]) >= self._x or round(point[1]) < 0 or round(point[1]) >= self._y
 
 
     # draw 'mark' at a given coordinate on the canvss
     def setPos(self, pos, mark):
-        self._canvas[pos[0]][pos[1]] = mark
+        self._canvas[round(pos[0])][round(pos[1])] = mark
 
     def clear(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -41,6 +42,15 @@ class TerminalScribe:
         self.mark  = "*"
         self.trail = "."
         self.delay = 0.01
+        # a feature to add a sense of direction in scribe
+        # x is left (-1) or right (1), and y is up (-1) or down (1)
+        self.direction = [0, 1]
+
+    # adding degrees to direction makes it flexible to move into that angle.
+    # formulae to devise next coordinate based on degree is taken from a LinkedIn course
+    def setDegrees(self, degrees):
+        radians = (degrees / 180) * math.pi
+        self.direction = [math.sin(radians), -math.cos(radians)]
 
     # 1. Draw a 'trail' char on the current pos, move to the next pos, and draw 'mark' char on that pos
     def draw(self, new_pos):
@@ -51,29 +61,28 @@ class TerminalScribe:
         # Sleep for a little bit to create the animation
         time.sleep(self.delay)
 
+    def forward(self):
+        next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
+        if not self.canvas.hitsWall(next_pos):
+            self.draw(next_pos)
+
     # move x coordinate by -1
     def drawLeft(self):
-        leftPos = (self.pos[0]-1, self.pos[1])
-        if not self.canvas.hitsWall(leftPos):
-            self.draw(leftPos)
+        self.direction = (-1, 0)
+        self.forward()
 
     # move x coordinate by +1
     def drawRight(self):
-        rightPos = (self.pos[0]+1, self.pos[1])
-        if not self.canvas.hitsWall(rightPos):
-            self.draw(rightPos)
+        self.direction = (1, 0)
+        self.forward()
 
-    # move y coordinate by -1
     def drawUp(self):
-        upPos = (self.pos[0], self.pos[1]-1)
-        if not self.canvas.hitsWall(upPos):
-            self.draw(upPos)
+        self.direction = (0, -1)
+        self.forward()
 
-    # move y coordinate by -1
     def drawDown(self):
-        downPos = (self.pos[0], self.pos[1]+1)
-        if not self.canvas.hitsWall(downPos):
-            self.draw(downPos)
+        self.direction = (0, 1)
+        self.forward()
 
     def drawSquare(self, square_size):
 
@@ -93,4 +102,7 @@ class TerminalScribe:
 canvas = Canvas(20, 20)
 scribe = TerminalScribe(canvas)
 
-scribe.drawSquare(15)
+scribe.setDegrees(135)
+
+for i in range(20):
+    scribe.forward()
