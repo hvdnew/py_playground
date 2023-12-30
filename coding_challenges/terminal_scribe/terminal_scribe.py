@@ -13,10 +13,20 @@ class Canvas:
         # creating a X * Y 2D matrix (list of lists) to capture X * Y pixels of blank canvas
         # [ [col1], [col2].... [col3]]
         self._canvas = [[' ' for y in range(self._y)] for x in range(self._x)]
-        
+
+
+    def hitsHorzWall(self, point):
+        return round(point[0]) < 0 or round(point[0]) >= self._x   
+    
+    def hitsVertWall(self, point):
+        return round(point[1]) < 0 or round(point[1]) >= self._y  
+    
+    def getReflection(self, point):
+        return (-1 if self.hitsHorzWall(point) else 1, -1 if self.hitsVertWall(point) else 1)
+    
     # Returns True if the given point is outside the boundaries of the Canvas
     def hitsWall(self, point):
-        return round(point[0]) < 0 or round(point[0]) >= self._x or round(point[1]) < 0 or round(point[1]) >= self._y
+        return self.hitsHorzWall(point) or self.hitsVertWall(point)
 
 
     # draw 'mark' at a given coordinate on the canvss
@@ -64,9 +74,17 @@ class TerminalScribe:
         # Sleep for a little bit to create the animation
         time.sleep(self.delay)
 
-    def forward(self):
-        next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
-        if not self.canvas.hitsWall(next_pos):
+    def bounce(self, pos):
+        reflection = self.canvas.getReflection(pos)
+        self.direction = (self.direction[0] * reflection[0], self.direction[1] * reflection[1])
+
+
+    def forward(self, distance=1):
+        for i in range(distance):
+            next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
+            if self.canvas.hitsWall(next_pos):
+                self.bounce(next_pos)
+                next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
             self.draw(next_pos)
 
     # move x coordinate by -1
@@ -103,90 +121,94 @@ class TerminalScribe:
         
 
 canvas = Canvas(20, 20)
+scribe = TerminalScribe(canvas=canvas)
+scribe.setPos((4, 6))
+scribe.setDegrees(150)
+scribe.forward(1000)
 
 # data structure to hold information to create and operate multiple scribes at once. 
 # definition includes, name, position and instructions
 # instructions are later flattened and executed for all the scribes 
-scribes = [
-    {
-        "name": "scribeZ",
-        "position": (7, 0),
-        "instructions": [
-            {
-                "function": "left",
-                "duration": 5
-            },
-            {
-                "function": "down",
-                "duration": 4
-            },
-            {
-                "function": "right",
-                "duration": 5
-            },
-            {
-                "function": "up",
-                "duration": 4
-            }
-        ]
-    },
-    {
-        "name": "scribeA",
-        "position": (5, 5),
-        "instructions": [
-            {
-                "function": "forward",
-                "duration": 10
-            }
-        ]
-    },
-    {
-        "name": "scribeB",
-        "position": (0, 10),
-        "instructions": [
-            {
-                "function": "forward",
-                "duration": 5
-            },
-            {
-                "function": "down",
-                "duration": 5
-            },
-            {
-                "function": "right",
-                "duration": 8
-            },
-            {
-                "function": "up",
-                "duration": 5
-            }
-        ]
-    }
-]
+# scribes = [
+#     {
+#         "name": "scribeZ",
+#         "position": (7, 0),
+#         "instructions": [
+#             {
+#                 "function": "left",
+#                 "duration": 5
+#             },
+#             {
+#                 "function": "down",
+#                 "duration": 4
+#             },
+#             {
+#                 "function": "right",
+#                 "duration": 5
+#             },
+#             {
+#                 "function": "up",
+#                 "duration": 4
+#             }
+#         ]
+#     },
+#     {
+#         "name": "scribeA",
+#         "position": (5, 5),
+#         "instructions": [
+#             {
+#                 "function": "forward",
+#                 "duration": 10
+#             }
+#         ]
+#     },
+#     {
+#         "name": "scribeB",
+#         "position": (3, 10),
+#         "instructions": [
+#             {
+#                 "function": "forward",
+#                 "duration": 5
+#             },
+#             {
+#                 "function": "down",
+#                 "duration": 5
+#             },
+#             {
+#                 "function": "right",
+#                 "duration": 8
+#             },
+#             {
+#                 "function": "up",
+#                 "duration": 199
+#             }
+#         ]
+#     }
+# ]
 
-for scribeDefinition in scribes:
-    scribeDefinition['scribe'] = TerminalScribe(canvas=canvas)
-    scribeDefinition['scribe'].setPos(scribeDefinition['position'])
+# for scribeDefinition in scribes:
+#     scribeDefinition['scribe'] = TerminalScribe(canvas=canvas)
+#     scribeDefinition['scribe'].setPos(scribeDefinition['position'])
 
-    scribeDefinition['instructions_flat'] = []
-    for instruction in scribeDefinition['instructions']:
-        scribeDefinition['instructions_flat'] = scribeDefinition['instructions_flat'] + [instruction['function']] * instruction['duration']
+#     scribeDefinition['instructions_flat'] = []
+#     for instruction in scribeDefinition['instructions']:
+#         scribeDefinition['instructions_flat'] = scribeDefinition['instructions_flat'] + [instruction['function']] * instruction['duration']
 
-# find the longest instructions arr length
-maxInstructionLen = max([len(scribeDefinition['instructions_flat']) for scribeDefinition in scribes])
+# # find the longest instructions arr length
+# maxInstructionLen = max([len(scribeDefinition['instructions_flat']) for scribeDefinition in scribes])
 
-# for counter execute all the scribes' instructions
-for i in range(0, maxInstructionLen):
-    for scribeDefinition in scribes:
-        if i < len(scribeDefinition['instructions_flat']):
-            fun_name = scribeDefinition['instructions_flat'][i]
-            if fun_name == 'forward':
-                scribeDefinition['scribe'].forward()
-            elif fun_name == 'up':
-                scribeDefinition['scribe'].drawUp()
-            elif fun_name == 'down':
-                scribeDefinition['scribe'].drawDown()
-            elif fun_name == 'left':
-                scribeDefinition['scribe'].drawLeft()
-            elif fun_name == 'right':
-                scribeDefinition['scribe'].drawRight()
+# # for counter execute all the scribes' instructions
+# for i in range(0, maxInstructionLen):
+#     for scribeDefinition in scribes:
+#         if i < len(scribeDefinition['instructions_flat']):
+#             fun_name = scribeDefinition['instructions_flat'][i]
+#             if fun_name == 'forward':
+#                 scribeDefinition['scribe'].forward()
+#             elif fun_name == 'up':
+#                 scribeDefinition['scribe'].drawUp()
+#             elif fun_name == 'down':
+#                 scribeDefinition['scribe'].drawDown()
+#             elif fun_name == 'left':
+#                 scribeDefinition['scribe'].drawLeft()
+#             elif fun_name == 'right':
+#                 scribeDefinition['scribe'].drawRight()
