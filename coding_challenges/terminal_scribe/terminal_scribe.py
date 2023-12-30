@@ -74,11 +74,19 @@ class TerminalScribe:
         # Sleep for a little bit to create the animation
         time.sleep(self.delay)
 
+    def plotX(self, higherOrderFunction):
+        for x in range(self.canvas._x):
+            # calling the function to determine y point for a given x
+            pos = (x, higherOrderFunction(x))
+            if pos[1] and not self.canvas.hitsWall(pos):
+                self.draw(pos)
+
+    # bound when hit a wal using a reflection from the canvas state
     def bounce(self, pos):
         reflection = self.canvas.getReflection(pos)
         self.direction = (self.direction[0] * reflection[0], self.direction[1] * reflection[1])
 
-
+    # move forward distance times
     def forward(self, distance=1):
         for i in range(distance):
             next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
@@ -120,11 +128,21 @@ class TerminalScribe:
             self.drawUp()
         
 
-canvas = Canvas(20, 20)
+def sine(x):
+    return 5 * (math.sin(x/4)) + 10
+
+def cosine(x):
+    return 5 * (math.cos(x/4)) + 10
+
+canvas = Canvas(30, 20)
 scribe = TerminalScribe(canvas=canvas)
-scribe.setPos((4, 6))
-scribe.setDegrees(150)
-scribe.forward(1000)
+scribe.plotX(sine)
+scribe.plotX(cosine)
+
+
+# scribe.setPos((4, 6))
+# scribe.setDegrees(150)
+# scribe.forward(1000)
 
 # data structure to hold information to create and operate multiple scribes at once. 
 # definition includes, name, position and instructions
