@@ -3,22 +3,88 @@ from dataclasses import dataclass
 import time
 import math
 import random
-from canvas import Canvas
+import os
 
 
+class TerminalScribeException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+class InvalidParameter(TerminalScribeException):
+    pass
+
+# a class to hold canvas state
+class Canvas:
+    # takes canvas dimention and initiates a blank canvas
+    def __init__(self, x, y):
+        self._x = x
+        self._y = y
+        # creating a X * Y 2D matrix (list of lists) to capture X * Y pixels of blank canvas
+        # [ [col1], [col2].... [col3]]
+        self._canvas = [[' ' for y in range(self._y)] for x in range(self._x)]
+
+
+    def hitsHorzWall(self, point):
+        return round(point[1]) < 0 or round(point[1]) >= self._y   
+    
+    def hitsVertWall(self, point):
+        return round(point[0]) < 0 or round(point[0]) >= self._x  
+    
+    def getReflection(self, point):
+        return (-1 if self.hitsVertWall(point) else 1, -1 if self.hitsHorzWall(point) else 1)
+    
+    # Returns True if the given point is outside the boundaries of the Canvas
+    def hitsWall(self, point):
+        return self.hitsHorzWall(point) or self.hitsVertWall(point)
+
+
+    # draw 'mark' at a given coordinate on the canvss
+    def setPos(self, pos, mark):
+        try:
+            self._canvas[round(pos[0])][round(pos[1])] = mark
+        except IndexError as e:
+            raise TerminalScribeException(f'cannot set mark {mark} at the canvas at pos [{pos}]')
+
+    def clear(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+    # Clear the terminal and then print each line in the canvas
+    def print(self):
+        self.clear()
+        for y in range(self._y):
+            print(' '.join([col[y] for col in self._canvas]))
 
 # a class to hold a canvas and 'scribe' on it, there is a trail and a mark
 # mark shows current state and trail shows a visited coordiante
 class TerminalScribe:
-    def __init__(self, canvas):
+    def __init__(self, canvas, pos=(0,0), mark="*", trail=".", delay=0.01, direction=(0,1)):
+        self.validate(pos, mark, trail, delay, direction)
         self.canvas = canvas
-        self.pos = (0, 0)
-        self.mark  = "*"
-        self.trail = "."
-        self.delay = 0.01
+        self.pos = pos
+        self.mark  = mark
+        self.trail = trail
+        self.delay = delay
         # a feature to add a sense of direction in scribe
         # x is left (-1) or right (1), and y is up (-1) or down (1)
-        self.direction = [0, 1]
+        self.direction = direction
+
+    def validate(self, pos, mark, trail, delay, direction):
+        # validate pos
+        if len(pos) != 2 or type(pos[0]) != int or type(pos[1]) != int:
+            raise InvalidParameter(f"Invalid pos parameter {pos} passed to a TerminalScribe constructor")  
+        
+        if len(str(mark)) != 1 or mark == trail:
+            raise InvalidParameter(f"mark {mark} should be at most 1 char long and should not be same as trail {trail}")
+        
+        if len(str(trail)) != 1:
+            raise InvalidParameter(f"trail {trail} should be at most 1 char long")
+        
+        if type(delay) != float or float(delay) > 5.0:
+            raise InvalidParameter(f"delay {delay} should be a float and less than 5")
+        
+        if len(direction) != 2 or type(direction[0]) != int or type(direction[1]) != int:
+            raise InvalidParameter(f"Invalid direction parameter {direction} passed to a TerminalScribe constructor")
+
 
     def setPos(self, pos):
         self.pos = pos

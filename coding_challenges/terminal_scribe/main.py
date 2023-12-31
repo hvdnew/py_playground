@@ -1,7 +1,6 @@
 
 import math
-from canvas import Canvas
-from terminal_scribe import TerminalScribe, RoboticTerminalScribe, RandomizedTerminalScribe, PlotTerminalScribe
+from terminal_scribe import Canvas, TerminalScribe, RoboticTerminalScribe, RandomizedTerminalScribe, PlotTerminalScribe
 
 def sine(x):
     return 5 * (math.sin(x/4)) + 10
