@@ -1,46 +1,10 @@
 
 from dataclasses import dataclass
-import os
 import time
 import math
+import random
+from canvas import Canvas
 
-# a class to hold canvas state
-class Canvas:
-    # takes canvas dimention and initiates a blank canvas
-    def __init__(self, x, y):
-        self._x = x
-        self._y = y
-        # creating a X * Y 2D matrix (list of lists) to capture X * Y pixels of blank canvas
-        # [ [col1], [col2].... [col3]]
-        self._canvas = [[' ' for y in range(self._y)] for x in range(self._x)]
-
-
-    def hitsHorzWall(self, point):
-        return round(point[0]) < 0 or round(point[0]) >= self._x   
-    
-    def hitsVertWall(self, point):
-        return round(point[1]) < 0 or round(point[1]) >= self._y  
-    
-    def getReflection(self, point):
-        return (-1 if self.hitsHorzWall(point) else 1, -1 if self.hitsVertWall(point) else 1)
-    
-    # Returns True if the given point is outside the boundaries of the Canvas
-    def hitsWall(self, point):
-        return self.hitsHorzWall(point) or self.hitsVertWall(point)
-
-
-    # draw 'mark' at a given coordinate on the canvss
-    def setPos(self, pos, mark):
-        self._canvas[round(pos[0])][round(pos[1])] = mark
-
-    def clear(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-    # Clear the terminal and then print each line in the canvas
-    def print(self):
-        self.clear()
-        for y in range(self._y):
-            print(' '.join([col[y] for col in self._canvas]))
 
 
 # a class to hold a canvas and 'scribe' on it, there is a trail and a mark
@@ -74,12 +38,6 @@ class TerminalScribe:
         # Sleep for a little bit to create the animation
         time.sleep(self.delay)
 
-    def plotX(self, higherOrderFunction):
-        for x in range(self.canvas._x):
-            # calling the function to determine y point for a given x
-            pos = (x, higherOrderFunction(x))
-            if pos[1] and not self.canvas.hitsWall(pos):
-                self.draw(pos)
 
     # bound when hit a wal using a reflection from the canvas state
     def bounce(self, pos):
@@ -91,9 +49,54 @@ class TerminalScribe:
         for i in range(distance):
             next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
             if self.canvas.hitsWall(next_pos):
+                # str = f'hit wall at {next_pos}, reflection {self.canvas.getReflection(next_pos)}, current dir {self.direction}'
                 self.bounce(next_pos)
                 next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
+                # print(f'{str} new next_pos {next_pos}, new direction {self.direction}')
+                # time.sleep(2)
             self.draw(next_pos)
+
+# special terminal scribe that takes forward direction in random directions
+class PlotTerminalScribe(TerminalScribe):
+    def __init__(self, canvas):
+        super().__init__(canvas)
+
+    def plotX(self, higherOrderFunction):
+        for x in range(self.canvas._x):
+            # calling the function to determine y point for a given x
+            pos = (x, higherOrderFunction(x))
+            if pos[1] and not self.canvas.hitsWall(pos):
+                self.draw(pos)
+
+# special terminal scribe that takes forward direction in random directions
+class RandomizedTerminalScribe(TerminalScribe):
+    def __init__(self, canvas, degree=90):
+        super().__init__(canvas)
+        self.random_degree = degree
+
+    # bound when hit a wal using a reflection from the canvas state
+    def bounce(self, pos):
+        reflection = self.canvas.getReflection(pos)
+        if reflection[0] == -1:
+            self.random_degree = 360 - self.random_degree
+        if reflection[-1] == -1:
+            self.random_degree = 180 - self.random_degree
+        self.direction = (self.direction[0] * reflection[0], self.direction[1] * reflection[1])
+
+    def randomizeDegOrientation(self):
+        self.random_degree = random.randrange(self.random_degree-10, self.random_degree+10)
+        self.setDegrees(self.random_degree)
+
+
+    def forward(self, distance=1):
+        for i in range(distance):
+            self.randomizeDegOrientation()
+            super().forward()
+
+# specialized TerminalScribe that has up, down, left, right methods, also it can draw a square
+class RoboticTerminalScribe(TerminalScribe):
+    def __init__(self, canvas):
+        super().__init__(canvas)
 
     # move x coordinate by -1
     def drawLeft(self):
@@ -126,107 +129,3 @@ class TerminalScribe:
 
         for i in range(1, square_size):
             self.drawUp()
-        
-
-def sine(x):
-    return 5 * (math.sin(x/4)) + 10
-
-def cosine(x):
-    return 5 * (math.cos(x/4)) + 10
-
-canvas = Canvas(30, 20)
-scribe = TerminalScribe(canvas=canvas)
-scribe.plotX(sine)
-scribe.plotX(cosine)
-
-
-# scribe.setPos((4, 6))
-# scribe.setDegrees(150)
-# scribe.forward(1000)
-
-# data structure to hold information to create and operate multiple scribes at once. 
-# definition includes, name, position and instructions
-# instructions are later flattened and executed for all the scribes 
-# scribes = [
-#     {
-#         "name": "scribeZ",
-#         "position": (7, 0),
-#         "instructions": [
-#             {
-#                 "function": "left",
-#                 "duration": 5
-#             },
-#             {
-#                 "function": "down",
-#                 "duration": 4
-#             },
-#             {
-#                 "function": "right",
-#                 "duration": 5
-#             },
-#             {
-#                 "function": "up",
-#                 "duration": 4
-#             }
-#         ]
-#     },
-#     {
-#         "name": "scribeA",
-#         "position": (5, 5),
-#         "instructions": [
-#             {
-#                 "function": "forward",
-#                 "duration": 10
-#             }
-#         ]
-#     },
-#     {
-#         "name": "scribeB",
-#         "position": (3, 10),
-#         "instructions": [
-#             {
-#                 "function": "forward",
-#                 "duration": 5
-#             },
-#             {
-#                 "function": "down",
-#                 "duration": 5
-#             },
-#             {
-#                 "function": "right",
-#                 "duration": 8
-#             },
-#             {
-#                 "function": "up",
-#                 "duration": 199
-#             }
-#         ]
-#     }
-# ]
-
-# for scribeDefinition in scribes:
-#     scribeDefinition['scribe'] = TerminalScribe(canvas=canvas)
-#     scribeDefinition['scribe'].setPos(scribeDefinition['position'])
-
-#     scribeDefinition['instructions_flat'] = []
-#     for instruction in scribeDefinition['instructions']:
-#         scribeDefinition['instructions_flat'] = scribeDefinition['instructions_flat'] + [instruction['function']] * instruction['duration']
-
-# # find the longest instructions arr length
-# maxInstructionLen = max([len(scribeDefinition['instructions_flat']) for scribeDefinition in scribes])
-
-# # for counter execute all the scribes' instructions
-# for i in range(0, maxInstructionLen):
-#     for scribeDefinition in scribes:
-#         if i < len(scribeDefinition['instructions_flat']):
-#             fun_name = scribeDefinition['instructions_flat'][i]
-#             if fun_name == 'forward':
-#                 scribeDefinition['scribe'].forward()
-#             elif fun_name == 'up':
-#                 scribeDefinition['scribe'].drawUp()
-#             elif fun_name == 'down':
-#                 scribeDefinition['scribe'].drawDown()
-#             elif fun_name == 'left':
-#                 scribeDefinition['scribe'].drawLeft()
-#             elif fun_name == 'right':
-#                 scribeDefinition['scribe'].drawRight()
