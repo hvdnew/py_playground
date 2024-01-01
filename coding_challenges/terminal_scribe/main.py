@@ -21,6 +21,7 @@ canvas = Canvas(30, 30)
 # data structure to hold information to create and operate multiple scribes at once. 
 # definition includes, name, position and instructions
 # instructions are later flattened and executed for all the scribes 
+
 scribes = [
     {
         "name": "scribeZ",
@@ -75,7 +76,7 @@ scribes = [
         "instructions": [
             {
                 "function": "forward",
-                "duration": 500
+                "duration": 150
             }
         ]
     }
@@ -84,19 +85,20 @@ scribes = [
 def createScribe(scribeDefinition, canvas):
     type = scribeDefinition['type']
     if type == 'terminal':
-        return TerminalScribe(canvas)
+        return TerminalScribe()
     elif type == 'robotic':
-        return RoboticTerminalScribe(canvas)
+        return RoboticTerminalScribe()
     elif type == 'plot':
-        return PlotTerminalScribe(canvas)
+        return PlotTerminalScribe()
     elif type == 'random':
-        return RandomizedTerminalScribe(canvas, scribeDefinition['degrees'] if scribeDefinition['degrees'] else 45)
+        return RandomizedTerminalScribe(scribeDefinition['degrees'] if scribeDefinition['degrees'] else 45)
     else:
         raise ValueError(f'The type {type} is not supported to create a scribe')
 
 for scribeDefinition in scribes:
 
     scribeDefinition['scribe'] = createScribe(scribeDefinition, canvas)
+    canvas.addScribe(scribeDefinition['scribe'])
     scribeDefinition['scribe'].setPos(scribeDefinition['position'])
 
     scribeDefinition['instructions_flat'] = []
@@ -121,3 +123,8 @@ for i in range(0, maxInstructionLen):
                 scribeDefinition['scribe'].drawLeft()
             elif fun_name == 'right':
                 scribeDefinition['scribe'].drawRight()
+
+try:
+    canvas.go()
+except:
+    print("something went wrong")

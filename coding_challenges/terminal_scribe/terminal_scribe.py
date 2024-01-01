@@ -4,6 +4,7 @@ import time
 import math
 import random
 import os
+from threading import Thread
 
 
 class TerminalScribeException(Exception):
@@ -13,16 +14,45 @@ class TerminalScribeException(Exception):
 class InvalidParameter(TerminalScribeException):
     pass
 
+class Scribe:
+    def __init__(self) -> None:
+        pass
+
+
 # a class to hold canvas state
 class Canvas:
     # takes canvas dimention and initiates a blank canvas
-    def __init__(self, x, y):
+    def __init__(self, x, y, scribes=[], framerate=0.005):
         self._x = x
         self._y = y
         # creating a X * Y 2D matrix (list of lists) to capture X * Y pixels of blank canvas
         # [ [col1], [col2].... [col3]]
         self._canvas = [[' ' for y in range(self._y)] for x in range(self._x)]
+        self.scribes = scribes
+        self.framerate = framerate
 
+    def addScribe(self, terminalScribe: Scribe):
+        if(not isinstance(terminalScribe, Scribe) and self.scribes.index(terminalScribe)):
+            raise InvalidParameter(f"the scribe {terminalScribe} is already added to canvas or incorrect type")
+        self.scribes.append(terminalScribe)
+
+    def go(self):
+
+        if(len(self.scribes) == 0):
+            raise InvalidParameter(f"cannot execute go on a canvas with no scribes")
+
+        def _call_scribe_move(_canvas, _scribe):
+            if len(_scribe.moves) > i:
+                args = _scribe.moves[i][1] + [_canvas]
+                _scribe.moves[i][0](*args)
+
+        max_moves = max([len(scribe.moves) for scribe in self.scribes])
+        for i in range(0, max_moves):
+            threads = [Thread(target=_call_scribe_move, args=[self, scribe]) for scribe in self.scribes]
+            [thread.start() for thread in threads]
+            [thread.join() for thread in threads]
+            self.print()
+            time.sleep(self.framerate)
 
     def hitsHorzWall(self, point):
         return round(point[1]) < 0 or round(point[1]) >= self._y   
@@ -56,10 +86,9 @@ class Canvas:
 
 # a class to hold a canvas and 'scribe' on it, there is a trail and a mark
 # mark shows current state and trail shows a visited coordiante
-class TerminalScribe:
-    def __init__(self, canvas, pos=(0,0), mark="*", trail=".", delay=0.01, direction=(0,1)):
+class TerminalScribe(Scribe):
+    def __init__(self, pos=(0,0), mark="*", trail=".", delay=0.01, direction=(0,1)):
         self.validate(pos, mark, trail, delay, direction)
-        self.canvas = canvas
         self.pos = pos
         self.mark  = mark
         self.trail = trail
@@ -67,10 +96,12 @@ class TerminalScribe:
         # a feature to add a sense of direction in scribe
         # x is left (-1) or right (1), and y is up (-1) or down (1)
         self.direction = direction
+        self.moves = []
+        self.override_param_direction = False
 
     def validate(self, pos, mark, trail, delay, direction):
         # validate pos
-        if len(pos) != 2 or type(pos[0]) != int or type(pos[1]) != int:
+        if not pos or len(pos) != 2 or type(pos[0]) != int or type(pos[1]) != int:
             raise InvalidParameter(f"Invalid pos parameter {pos} passed to a TerminalScribe constructor")  
         
         if len(str(mark)) != 1 or mark == trail:
@@ -96,36 +127,48 @@ class TerminalScribe:
         self.direction = [math.sin(radians), -math.cos(radians)]
 
     # 1. Draw a 'trail' char on the current pos, move to the next pos, and draw 'mark' char on that pos
-    def draw(self, new_pos):
-        self.canvas.setPos(self.pos, self.trail)
+    def draw(self, new_pos, canvas):
+        canvas.setPos(self.pos, self.trail)
         self.pos = new_pos
-        self.canvas.setPos(self.pos, self.mark)
-        self.canvas.print()
+        canvas.setPos(self.pos, self.mark)
+        canvas.print()
         # Sleep for a little bit to create the animation
         time.sleep(self.delay)
 
 
     # bound when hit a wal using a reflection from the canvas state
-    def bounce(self, pos):
-        reflection = self.canvas.getReflection(pos)
+    def bounce(self, pos, canvas):
+        reflection = canvas.getReflection(pos)
         self.direction = (self.direction[0] * reflection[0], self.direction[1] * reflection[1])
+
+    def bounceOffDirection(self, pos, direction, canvas):
+        reflection = canvas.getReflection(pos)
+        self.direction = (direction[0] * reflection[0], direction[1] * reflection[1])
 
     # move forward distance times
     def forward(self, distance=1):
-        for i in range(distance):
-            next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
-            if self.canvas.hitsWall(next_pos):
-                # str = f'hit wall at {next_pos}, reflection {self.canvas.getReflection(next_pos)}, current dir {self.direction}'
-                self.bounce(next_pos)
-                next_pos = (self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])
-                # print(f'{str} new next_pos {next_pos}, new direction {self.direction}')
+
+        def _forward(term_scribe, scribe_direction, canvas):
+            effective_scribe_direction = term_scribe.direction if term_scribe.override_param_direction else scribe_direction
+            next_pos = (term_scribe.pos[0] + effective_scribe_direction[0], term_scribe.pos[1] + effective_scribe_direction[1])
+             
+            if canvas.hitsWall(next_pos):
+                # print(f"bouncing from pos {next_pos}, term_scribe.pos {term_scribe.pos}, direction {effective_scribe_direction} reflection {canvas.getReflection(next_pos)}")
+                term_scribe.bounceOffDirection(next_pos, effective_scribe_direction, canvas)
+                term_scribe.override_param_direction = True
+                next_pos = (term_scribe.pos[0] + term_scribe.direction[0], term_scribe.pos[1] + term_scribe.direction[1])
+                # print(f"to pos direction term_scribe.pos {term_scribe.pos} {self.direction} {next_pos}")
                 # time.sleep(2)
-            self.draw(next_pos)
+            term_scribe.draw(next_pos, canvas)
+        
+        for i in range(distance):
+            self.moves.append((_forward, [self, self.direction]))
+        
 
 # special terminal scribe that takes forward direction in random directions
 class PlotTerminalScribe(TerminalScribe):
-    def __init__(self, canvas):
-        super().__init__(canvas)
+    def __init__(self):
+        super().__init__()
 
     def plotX(self, higherOrderFunction):
         for x in range(self.canvas._x):
@@ -136,13 +179,13 @@ class PlotTerminalScribe(TerminalScribe):
 
 # special terminal scribe that takes forward direction in random directions
 class RandomizedTerminalScribe(TerminalScribe):
-    def __init__(self, canvas, degree=90):
-        super().__init__(canvas)
+    def __init__(self, degree=90):
+        super().__init__()
         self.random_degree = degree
 
     # bound when hit a wal using a reflection from the canvas state
-    def bounce(self, pos):
-        reflection = self.canvas.getReflection(pos)
+    def bounce(self, pos, canvas):
+        reflection = canvas.getReflection(pos)
         if reflection[0] == -1:
             self.random_degree = 360 - self.random_degree
         if reflection[-1] == -1:
@@ -161,37 +204,33 @@ class RandomizedTerminalScribe(TerminalScribe):
 
 # specialized TerminalScribe that has up, down, left, right methods, also it can draw a square
 class RoboticTerminalScribe(TerminalScribe):
-    def __init__(self, canvas):
-        super().__init__(canvas)
+    def __init__(self, pos=[0,0]):
+        super().__init__(pos=pos)
 
     # move x coordinate by -1
-    def drawLeft(self):
+    def drawLeft(self, distance=1):
         self.direction = (-1, 0)
-        self.forward()
+        # print(f'drawLeft {self.pos} {(self.pos[0] + self.direction[0], self.pos[1] + self.direction[1])}')
+        self.forward(distance=distance)
 
     # move x coordinate by +1
-    def drawRight(self):
+    def drawRight(self, distance=1):
         self.direction = (1, 0)
-        self.forward()
+        # print('drawRight')
+        self.forward(distance=distance)
 
-    def drawUp(self):
+    def drawUp(self, distance=1):
         self.direction = (0, -1)
-        self.forward()
+        # print('drawUp')
+        self.forward(distance=distance)
 
-    def drawDown(self):
+    def drawDown(self, distance=1):
         self.direction = (0, 1)
-        self.forward()
+        # print('drawDown')
+        self.forward(distance=distance)
 
     def drawSquare(self, square_size):
-
-        for i in range(0, square_size):
-            self.drawRight()
-
-        for i in range(1, square_size):
-            self.drawDown()
-
-        for i in range(0, square_size):
-            self.drawLeft()
-
-        for i in range(1, square_size):
-            self.drawUp()
+        self.drawRight(square_size)
+        self.drawDown(square_size)
+        self.drawLeft(square_size)
+        self.drawUp(square_size)
