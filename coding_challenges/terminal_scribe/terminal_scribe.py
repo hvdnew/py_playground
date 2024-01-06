@@ -5,6 +5,7 @@ import math
 import random
 import os
 from threading import Thread
+from inspect import getmembers, ismethod
 
 
 class TerminalScribeException(Exception):
@@ -43,8 +44,10 @@ class Canvas:
 
         def _call_scribe_move(_canvas, _scribe):
             if len(_scribe.moves) > i:
-                args = _scribe.moves[i][1] + [_canvas]
+                args = _scribe.moves[i][1] + [_canvas, _scribe]
                 _scribe.moves[i][0](*args)
+
+        print(f'==> {self.scribes}')
 
         max_moves = max([len(scribe.moves) for scribe in self.scribes])
         for i in range(0, max_moves):
@@ -83,6 +86,24 @@ class Canvas:
         self.clear()
         for y in range(self._y):
             print(' '.join([col[y] for col in self._canvas]))
+
+    def toDict(self):
+        return {
+            'classname': type(self).__name__,
+            'x': self._x,
+            'y': self._y,
+            'canvas': self._canvas,
+            'scribes': [scribe.toDict() for scribe in self.scribes]
+        }
+    @classmethod
+    def fromDict(self, data):
+        canvas = globals()[data.get('classname')](
+            data.get('x'), 
+            data.get('y'), 
+            [globals()[scribeDict.get('classname')].fromDict(scribeDict) for scribeDict in data.get('scribes')]
+        )
+        canvas._canvas = data.get('canvas')
+        return canvas
 
 # a class to hold a canvas and 'scribe' on it, there is a trail and a mark
 # mark shows current state and trail shows a visited coordiante
@@ -145,10 +166,7 @@ class TerminalScribe(Scribe):
         reflection = canvas.getReflection(pos)
         self.direction = (direction[0] * reflection[0], direction[1] * reflection[1])
 
-    # move forward distance times
-    def forward(self, distance=1):
-
-        def _forward(term_scribe, scribe_direction, canvas):
+    def _forward(self, scribe_direction, canvas, term_scribe):
             effective_scribe_direction = term_scribe.direction if term_scribe.override_param_direction else scribe_direction
             next_pos = (term_scribe.pos[0] + effective_scribe_direction[0], term_scribe.pos[1] + effective_scribe_direction[1])
              
@@ -160,15 +178,41 @@ class TerminalScribe(Scribe):
                 # print(f"to pos direction term_scribe.pos {term_scribe.pos} {self.direction} {next_pos}")
                 # time.sleep(2)
             term_scribe.draw(next_pos, canvas)
-        
+
+    # move forward distance times
+    def forward(self, distance=1):
+
         for i in range(distance):
-            self.moves.append((_forward, [self, self.direction]))
-        
+            self.moves.append((self._forward, [self.direction]))
+
+    def toDict(self):
+        return {
+            'classname': type(self).__name__,
+            'mark': self.mark,
+            'trail': self.trail,
+            'pos': self.pos,
+            'moves': [[move[0].__name__, move[1]] for move in self.moves]
+        }
+    
+    @classmethod
+    def fromDict(self, data):
+
+        scribe = globals()[data.get('classname')](
+            pos=data.get('pos'),
+            mark=data.get('mark'),
+            trail=data.get('trail')
+        )
+        scribe.moves = scribe._movesFromDict(data.get('moves'))
+        return scribe;
+
+    def _movesFromDict(self, movesData):
+        bound_methods = {key: val for key, val in getmembers(self, predicate=ismethod)}
+        return [[bound_methods[name], args] for name, args in movesData]
 
 # special terminal scribe that takes forward direction in random directions
 class PlotTerminalScribe(TerminalScribe):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, pos=[0,0], mark="*", trail="."):
+        super().__init__(pos=pos, mark=mark, trail=trail)
 
     def plotX(self, higherOrderFunction):
         for x in range(self.canvas._x):
@@ -179,8 +223,8 @@ class PlotTerminalScribe(TerminalScribe):
 
 # special terminal scribe that takes forward direction in random directions
 class RandomizedTerminalScribe(TerminalScribe):
-    def __init__(self, degree=90):
-        super().__init__()
+    def __init__(self, pos=[0,0], mark="*", trail=".", degree=90):
+        super().__init__(pos=pos, mark=mark, trail=trail)
         self.random_degree = degree
 
     # bound when hit a wal using a reflection from the canvas state
@@ -204,8 +248,8 @@ class RandomizedTerminalScribe(TerminalScribe):
 
 # specialized TerminalScribe that has up, down, left, right methods, also it can draw a square
 class RoboticTerminalScribe(TerminalScribe):
-    def __init__(self, pos=[0,0]):
-        super().__init__(pos=pos)
+    def __init__(self, pos=[0,0], mark="*", trail="."):
+        super().__init__(pos=pos, mark=mark, trail=trail)
 
     # move x coordinate by -1
     def drawLeft(self, distance=1):

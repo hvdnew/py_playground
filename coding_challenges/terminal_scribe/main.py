@@ -1,6 +1,7 @@
 
 import math
 from terminal_scribe import Canvas, TerminalScribe, RoboticTerminalScribe, RandomizedTerminalScribe, PlotTerminalScribe
+import json
 
 def sine(x):
     return 5 * (math.sin(x/4)) + 10
@@ -91,7 +92,7 @@ def createScribe(scribeDefinition, canvas):
     elif type == 'plot':
         return PlotTerminalScribe()
     elif type == 'random':
-        return RandomizedTerminalScribe(scribeDefinition['degrees'] if scribeDefinition['degrees'] else 45)
+        return RandomizedTerminalScribe(degree=scribeDefinition['degrees'] if scribeDefinition['degrees'] else 45)
     else:
         raise ValueError(f'The type {type} is not supported to create a scribe')
 
@@ -124,7 +125,22 @@ for i in range(0, maxInstructionLen):
             elif fun_name == 'right':
                 scribeDefinition['scribe'].drawRight()
 
+print('---------WRITING--------')
+with open('canvas_state.text', 'w') as file_out:
+    file_out.write(json.dumps(canvas.toDict()))
+
+print('---------READING--------')
+with open('canvas_state.text', 'r') as file_in:
+    data = file_in.read()
+
+canvas_from_file = Canvas.fromDict(json.loads(data))
+
+canvas_from_file.go()
+
+
+
 try:
-    canvas.go()
+    #canvas.go()
+    pass
 except:
     print("something went wrong")
