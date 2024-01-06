@@ -3,107 +3,12 @@ from dataclasses import dataclass
 import time
 import math
 import random
-import os
-from threading import Thread
 from inspect import getmembers, ismethod
-
-
-class TerminalScribeException(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__(*args)
-
-class InvalidParameter(TerminalScribeException):
-    pass
+from terminal_scribe_exceptions import TerminalScribeException, InvalidParameterException
 
 class Scribe:
     def __init__(self) -> None:
         pass
-
-
-# a class to hold canvas state
-class Canvas:
-    # takes canvas dimention and initiates a blank canvas
-    def __init__(self, x, y, scribes=[], framerate=0.005):
-        self._x = x
-        self._y = y
-        # creating a X * Y 2D matrix (list of lists) to capture X * Y pixels of blank canvas
-        # [ [col1], [col2].... [col3]]
-        self._canvas = [[' ' for y in range(self._y)] for x in range(self._x)]
-        self.scribes = scribes
-        self.framerate = framerate
-
-    def addScribe(self, terminalScribe: Scribe):
-        if(not isinstance(terminalScribe, Scribe) and self.scribes.index(terminalScribe)):
-            raise InvalidParameter(f"the scribe {terminalScribe} is already added to canvas or incorrect type")
-        self.scribes.append(terminalScribe)
-
-    def go(self):
-
-        if(len(self.scribes) == 0):
-            raise InvalidParameter(f"cannot execute go on a canvas with no scribes")
-
-        def _call_scribe_move(_canvas, _scribe):
-            if len(_scribe.moves) > i:
-                args = _scribe.moves[i][1] + [_canvas, _scribe]
-                _scribe.moves[i][0](*args)
-
-        print(f'==> {self.scribes}')
-
-        max_moves = max([len(scribe.moves) for scribe in self.scribes])
-        for i in range(0, max_moves):
-            threads = [Thread(target=_call_scribe_move, args=[self, scribe]) for scribe in self.scribes]
-            [thread.start() for thread in threads]
-            [thread.join() for thread in threads]
-            self.print()
-            time.sleep(self.framerate)
-
-    def hitsHorzWall(self, point):
-        return round(point[1]) < 0 or round(point[1]) >= self._y   
-    
-    def hitsVertWall(self, point):
-        return round(point[0]) < 0 or round(point[0]) >= self._x  
-    
-    def getReflection(self, point):
-        return (-1 if self.hitsVertWall(point) else 1, -1 if self.hitsHorzWall(point) else 1)
-    
-    # Returns True if the given point is outside the boundaries of the Canvas
-    def hitsWall(self, point):
-        return self.hitsHorzWall(point) or self.hitsVertWall(point)
-
-
-    # draw 'mark' at a given coordinate on the canvss
-    def setPos(self, pos, mark):
-        try:
-            self._canvas[round(pos[0])][round(pos[1])] = mark
-        except IndexError as e:
-            raise TerminalScribeException(f'cannot set mark {mark} at the canvas at pos [{pos}]')
-
-    def clear(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-    # Clear the terminal and then print each line in the canvas
-    def print(self):
-        self.clear()
-        for y in range(self._y):
-            print(' '.join([col[y] for col in self._canvas]))
-
-    def toDict(self):
-        return {
-            'classname': type(self).__name__,
-            'x': self._x,
-            'y': self._y,
-            'canvas': self._canvas,
-            'scribes': [scribe.toDict() for scribe in self.scribes]
-        }
-    @classmethod
-    def fromDict(self, data):
-        canvas = globals()[data.get('classname')](
-            data.get('x'), 
-            data.get('y'), 
-            [globals()[scribeDict.get('classname')].fromDict(scribeDict) for scribeDict in data.get('scribes')]
-        )
-        canvas._canvas = data.get('canvas')
-        return canvas
 
 # a class to hold a canvas and 'scribe' on it, there is a trail and a mark
 # mark shows current state and trail shows a visited coordiante
@@ -123,19 +28,19 @@ class TerminalScribe(Scribe):
     def validate(self, pos, mark, trail, delay, direction):
         # validate pos
         if not pos or len(pos) != 2 or type(pos[0]) != int or type(pos[1]) != int:
-            raise InvalidParameter(f"Invalid pos parameter {pos} passed to a TerminalScribe constructor")  
+            raise InvalidParameterException(f"Invalid pos parameter {pos} passed to a TerminalScribe constructor")  
         
         if len(str(mark)) != 1 or mark == trail:
-            raise InvalidParameter(f"mark {mark} should be at most 1 char long and should not be same as trail {trail}")
+            raise InvalidParameterException(f"mark {mark} should be at most 1 char long and should not be same as trail {trail}")
         
         if len(str(trail)) != 1:
-            raise InvalidParameter(f"trail {trail} should be at most 1 char long")
+            raise InvalidParameterException(f"trail {trail} should be at most 1 char long")
         
         if type(delay) != float or float(delay) > 5.0:
-            raise InvalidParameter(f"delay {delay} should be a float and less than 5")
+            raise InvalidParameterException(f"delay {delay} should be a float and less than 5")
         
         if len(direction) != 2 or type(direction[0]) != int or type(direction[1]) != int:
-            raise InvalidParameter(f"Invalid direction parameter {direction} passed to a TerminalScribe constructor")
+            raise InvalidParameterException(f"Invalid direction parameter {direction} passed to a TerminalScribe constructor")
 
 
     def setPos(self, pos):
@@ -154,7 +59,7 @@ class TerminalScribe(Scribe):
         canvas.setPos(self.pos, self.mark)
         canvas.print()
         # Sleep for a little bit to create the animation
-        time.sleep(self.delay)
+        #time.sleep(self.delay)
 
 
     # bound when hit a wal using a reflection from the canvas state

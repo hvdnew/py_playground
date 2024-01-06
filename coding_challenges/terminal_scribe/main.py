@@ -1,6 +1,7 @@
 
 import math
-from terminal_scribe import Canvas, TerminalScribe, RoboticTerminalScribe, RandomizedTerminalScribe, PlotTerminalScribe
+from terminal_scribe import TerminalScribe, RoboticTerminalScribe, RandomizedTerminalScribe, PlotTerminalScribe
+from canvas import Canvas
 import json
 
 def sine(x):
