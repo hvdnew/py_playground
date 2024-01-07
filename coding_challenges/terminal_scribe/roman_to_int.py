@@ -1,44 +1,10 @@
 
-# Symbol       Value
-# I             1
-# V             5
-# X             10
-# L             50
-# C             100
-# D             500
-# M             1000
 
-
-
-# Example 1:
-
-# Input: s = "III"
-# Output: 3
-# Explanation: III = 3.
-# Example 2:
-
-# Input: s = "LVIII"
-# Output: 58
-# Explanation: L = 50, V= 5, III = 3.
-# Example 3:
-
-# Input: s = "MCMXCIV"
-# Output: 1994
-# Explanation: M = 1000, CM = 900, XC = 90 and IV = 4.
-
+#54ms Beats 45.53% of users with Python3
 class Solution(object):
 
-    def __init__(self) -> None:
-        self.prefix_info = {'I': ('V', 'X'),
-                            'V': (),
-                            'X': ('L', 'C'),
-                            'L': (),
-                            'C': ('D', 'M'),
-                            'D': (),
-                            'M': ()}
-
     def romanIntVal(self, roman):
-        val = 0;
+        val = -1;
         match roman:
             case 'I':
                 val = 1;
@@ -67,20 +33,9 @@ class Solution(object):
             case 'CM':
                 val = 900
             case _:
-                raise ValueError(f'Invalid roman char {roman}')
+                val = -1
         
         return val
-
-    def doAttach(self, eval_char, next_char):
-        idx = -1
-        try:
-            next_chars = self.prefix_info[eval_char]
-            idx = next_chars.index(next_char) if len(next_chars) > 0 else -1
-        except:
-            print(f'Error evaulating {eval_char} {next_char}')
-            return False
-
-        return idx != -1
         
 
 
@@ -104,7 +59,7 @@ class Solution(object):
         while idx < len(char_list):
             eval_char = char_list[idx]
 
-            if idx < len(char_list) -1 and self.doAttach(eval_char, char_list[idx+1]):
+            if idx < (len(char_list)) -1 and self.romanIntVal(eval_char + char_list[idx+1]) != -1:
                 eval_char = eval_char + char_list[idx+1]
                 num = num + self.romanIntVal(eval_char)
                 idx += 2
@@ -118,7 +73,7 @@ class Solution(object):
 
 def main():
     sol = Solution()
-    print(sol.romanToInt('LVIII'))
+    print(sol.romanToInt('MCMXCIV'))
     pass
 
 if __name__ == '__main__':
