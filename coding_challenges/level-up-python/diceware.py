@@ -3,7 +3,7 @@ from secrets import randbelow
 
 class Diceware:
     
-    _diceware_file = './diceware_words.txt'
+    _diceware_file = './files/diceware_words.txt'
 
     def load_diceware(self):
         word_dict = {}
