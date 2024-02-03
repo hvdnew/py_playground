@@ -16,6 +16,7 @@ class MergeCSV:
         data = []
         with open(file, 'r') as ip:
             dict_reader = csv.DictReader(ip)
+            #dict_reader.fieldnames this can be used to reduce a loop
             [data.append(row) for row in dict_reader]
 
         return data
